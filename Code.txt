@@ -1,0 +1,74 @@
+#include <TinyWireM.h>
+#include <Tiny4kOLED.h>
+
+const byte LED_RUN   = 1;
+const byte BTN_START = 4;
+const byte BTN_RESET = 3;
+
+volatile uint32_t msElapsed = 0;
+bool   running = false;
+
+uint32_t lastBlink = 0;
+const uint16_t BLINK_MS = 250;
+
+void setup() {
+  pinMode(LED_RUN, OUTPUT);
+  pinMode(BTN_START, INPUT_PULLUP);
+  pinMode(BTN_RESET, INPUT_PULLUP);
+
+  oled.begin();
+  oled.clear();
+  oled.setFont(FONT8X16P);
+  oled.on();
+}
+
+void loop() {
+  static bool prevStart = HIGH, prevReset = HIGH;
+  bool curStart = digitalRead(BTN_START);
+  bool curReset = digitalRead(BTN_RESET);
+
+  if (prevStart == HIGH && curStart == LOW) {
+    running = !running;
+  }
+  prevStart = curStart;
+
+  if (prevReset == HIGH && curReset == LOW && !running) {
+    msElapsed = 0;
+  }
+  prevReset = curReset;
+
+  static uint32_t prevMillis = 0;
+  uint32_t now = millis();
+
+  if (running) {
+    msElapsed += now - prevMillis;
+  }
+  prevMillis = now;
+
+  static uint32_t prevRefresh = 0;
+  if (now - prevRefresh > 100) {
+    prevRefresh = now;
+
+    uint32_t totalSec = msElapsed / 1000;
+    uint8_t  sec  = totalSec % 60;
+    uint8_t  min  = (totalSec / 60) % 60;
+    uint8_t  hour = (totalSec / 3600);
+
+    char buf[9];
+    if (hour)
+      snprintf(buf, sizeof(buf), "%02u:%02u:%02u", hour, min, sec);
+    else
+      snprintf(buf, sizeof(buf), "   %02u:%02u", min, sec);
+
+    oled.clear();
+    oled.setCursor(0, 2);
+    oled.print(buf);
+  }
+
+  if (running && (now - lastBlink > BLINK_MS)) {
+    lastBlink = now;
+    digitalWrite(LED_RUN, !digitalRead(LED_RUN));
+  } else if (!running) {
+    digitalWrite(LED_RUN, LOW);
+  }
+}
