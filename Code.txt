@@ -1,11 +1,16 @@
+#include <avr/interrupt.h>
 #include <Wire.h>
 #include <Tiny4kOLED.h>
 
-const byte LED_RUN = 1, BTN_START = 4, BTN_RESET = 3;
-volatile uint32_t msElapsed = 0;  bool running = false;
+const byte LED_RUN   = 1;
+const byte BTN_START = 4;
+const byte BTN_RESET = 3;
+
+volatile uint32_t msElapsed = 0;
+volatile bool     running   = false;
 
 void setup() {
-  pinMode(LED_RUN, OUTPUT);
+  pinMode(LED_RUN,   OUTPUT);
   pinMode(BTN_START, INPUT_PULLUP);
   pinMode(BTN_RESET, INPUT_PULLUP);
 
@@ -13,47 +18,56 @@ void setup() {
   oled.clear();
   oled.setFontX2(FONT8X16P);
   oled.on();
-
   oled.setCursor(24, 0);
   oled.print(F("00:00"));
+
+  TCCR1  = (1 << CTC1) | (1 << CS12) | (1 << CS11) | (1 << CS10);
+  OCR1C  = (F_CPU / 64000UL) - 1;
+  TIMSK |= (1 << OCIE1A);
+  sei();
 }
 
 void loop() {
-  static bool prevS = HIGH, prevR = HIGH;
+  static bool prevStart = HIGH, prevReset = HIGH;
   bool s = digitalRead(BTN_START);
   bool r = digitalRead(BTN_RESET);
 
-  if (prevS && !s) running = !running;
-  prevS = s;
+  if (prevStart && !s) running = !running;
+  prevStart = s;
 
-  if (prevR && !r && !running) msElapsed = 0;
-  prevR = r;
+  if (prevReset && !r && !running) {
+    cli(); msElapsed = 0; sei();
+  }
+  prevReset = r;
 
-  static uint32_t tPrev = 0;
-  uint32_t now = millis();
-  if (running) msElapsed += now - tPrev;
-  tPrev = now;
+  uint32_t msCopy;
+  cli(); msCopy = msElapsed; sei();
 
-  static uint16_t prevShownSec = 0xFFFF;
-  uint32_t totalSec = msElapsed / 1000;
-  if (totalSec != prevShownSec) {
-    prevShownSec = totalSec;
-
+  static uint32_t prevSec = 0xFFFFFFFF;
+  uint32_t totalSec = msCopy / 1000;
+  if (totalSec != prevSec) {
+    prevSec = totalSec;
     uint8_t sec = totalSec % 60;
     uint8_t min = (totalSec / 60) % 100;
 
     char buf[6];
-    snprintf(buf, sizeof(buf), "%02u:%02u", min, sec);
-
+    snprintf(buf, sizeof buf, "%02u:%02u", min, sec);
     oled.setCursor(24, 0);
     oled.print(buf);
   }
 
-  static uint32_t tBlink = 0;
-  if (running && now - tBlink >= 250) {
-    tBlink = now;
-    digitalWrite(LED_RUN, !digitalRead(LED_RUN));
-  } else if (!running) {
+  static uint16_t blinkCnt = 0;
+  if (running) {
+    if (++blinkCnt >= 250) {
+      blinkCnt = 0;
+      PINB |= _BV(LED_RUN);
+    }
+  } else {
     digitalWrite(LED_RUN, LOW);
+    blinkCnt = 0;
   }
+}
+
+ISR(TIMER1_COMPA_vect) {
+  if (running) msElapsed++;
 }
