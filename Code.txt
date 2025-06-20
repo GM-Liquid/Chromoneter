@@ -13,16 +13,16 @@ void setup() {
   pinMode(BTN_START, INPUT_PULLUP);
   pinMode(BTN_RESET, INPUT_PULLUP);
 
-  oled.begin();
+  oled.begin(128, 64,
+             sizeof(tiny4koled_init_128x64),
+             tiny4koled_init_128x64);
+  oled.setPages(8);
   oled.clear();
-  oled.setFont(FONT8X16P);
-  oled.setFontX2();
+  oled.setFontX2(FONT8X16P);
   oled.on();
 
-  oled.setCursor(40, 0);
-  oled.print(F("00"));
-  oled.setCursor(40, 4);
-  oled.print(F("00"));
+  oled.setCursor(24, 2);
+  oled.print(F("00:00"));
 }
 
 void loop() {
@@ -41,21 +41,18 @@ void loop() {
   if (running) msElapsed += now - tPrev;
   tPrev = now;
 
-  static uint16_t prevSecShown = 0xFFFF;
+  static uint16_t prevShownSec = 0xFFFF;
   uint32_t totalSec = msElapsed / 1000;
-  if (totalSec != prevSecShown) {
-    prevSecShown = totalSec;
+  if (totalSec != prevShownSec) {
+    prevShownSec = totalSec;
 
     uint8_t sec = totalSec % 60;
     uint8_t min = (totalSec / 60) % 100;
 
-    char buf[3];
-    snprintf(buf, sizeof(buf), "%02u", min);
-    oled.setCursor(40, 0);
-    oled.print(buf);
+    char buf[6];
+    snprintf(buf, sizeof(buf), "%02u:%02u", min, sec);
 
-    snprintf(buf, sizeof(buf), "%02u", sec);
-    oled.setCursor(40, 4);
+    oled.setCursor(24, 2);
     oled.print(buf);
   }
 
