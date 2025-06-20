@@ -1,27 +1,20 @@
 #include <Wire.h>
 #include <Tiny4kOLED.h>
 
-const byte LED_RUN   = 1;
-const byte BTN_START = 4;
-const byte BTN_RESET = 3;
-
-volatile uint32_t msElapsed = 0;
-bool running = false;
+const byte LED_RUN = 1, BTN_START = 4, BTN_RESET = 3;
+volatile uint32_t msElapsed = 0;  bool running = false;
 
 void setup() {
   pinMode(LED_RUN, OUTPUT);
   pinMode(BTN_START, INPUT_PULLUP);
   pinMode(BTN_RESET, INPUT_PULLUP);
 
-  oled.begin(128, 64,
-             sizeof(tiny4koled_init_128x64),
-             tiny4koled_init_128x64);
-  oled.setPages(8);
+  oled.begin();
   oled.clear();
   oled.setFontX2(FONT8X16P);
   oled.on();
 
-  oled.setCursor(24, 2);
+  oled.setCursor(24, 0);
   oled.print(F("00:00"));
 }
 
@@ -52,7 +45,7 @@ void loop() {
     char buf[6];
     snprintf(buf, sizeof(buf), "%02u:%02u", min, sec);
 
-    oled.setCursor(24, 2);
+    oled.setCursor(24, 0);
     oled.print(buf);
   }
 
